@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>厦门旅游攻略 — 8月9日-12日</title>
+<link rel="stylesheet" href="leaflet.css" />
+<style>
+  :root {
+    --blue: #1a73e8;
+    --teal: #0d9488;
+    --orange: #ea580c;
+    --amber: #d97706;
+    --red: #dc2626;
+    --gray: #6b7280;
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --text: #1c1c1e;
+    --muted: #8e8e93;
+    --border: #e5e5ea;
+    --radius: 10px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    background:var(--bg);color:var(--text);line-height:1.5;
+    -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;
+    overscroll-behavior:none;
+  }
+  .header{
+    background:var(--card);padding:12px 16px;
+    display:flex;align-items:center;gap:12px;
+    border-bottom:1px solid var(--border);
+    position:sticky;top:0;z-index:1000;
+  }
+  .header h1{font-size:18px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .header .date-badge{
+    font-size:11px;color:var(--blue);background:#e8f0fe;padding:3px 8px;border-radius:12px;
+    white-space:nowrap;font-weight:600;
+  }
+  .tabs{
+    display:flex;background:var(--card);border-bottom:1px solid var(--border);
+    position:sticky;top:52px;z-index:999;
+  }
+  .tab{
+    flex:1;text-align:center;padding:12px 0;font-size:14px;font-weight:600;
+    color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;
+    transition:all .15s;user-select:none;
+  }
+  .tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+  .panel{display:none;padding-bottom:calc(80px + var(--safe-bottom))}
+  .panel.active{display:block}
+  #map{height:calc(100vh - 104px - 60px);width:100%}
+  .leaflet-popup-content{font-size:13px;line-height:1.5;margin:8px 12px;max-width:260px}
+  .leaflet-popup-content h3{font-size:15px;margin-bottom:4px}
+  .leaflet-popup-content .tag{
+    display:inline-block;font-size:10px;padding:2px 6px;border-radius:4px;margin:2px 4px 2px 0;
+    font-weight:600;
+  }
+  .tag-free{background:#d1fae5;color:#065f46}
+  .tag-paid{background:#fef3c7;color:#92400e}
+  .tag-time{background:#dbeafe;color:#1e40af}
+  .tag-food{background:#fce7f3;color:#9d174d}
+  .map-filters{
+    position:fixed;bottom:calc(16px + var(--safe-bottom));left:16px;right:16px;
+    display:flex;gap:8px;overflow-x:auto;z-index:1001;
+    padding:4px 0;-ms-overflow-style:none;scrollbar-width:none;
+  }
+  .map-filters::-webkit-scrollbar{display:none}
+  .map-filter{
+    flex-shrink:0;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:600;
+    background:var(--card);border:none;box-shadow:0 2px 8px rgba(0,0,0,.12);
+    color:var(--text);cursor:pointer;transition:all .15s;white-space:nowrap;
+  }
+  .map-filter.active{background:var(--blue);color:#fff}
+  .day-card{
+    background:var(--card);margin:12px 16px;border-radius:var(--radius);
+    overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.04);
+  }
+  .day-header{
+    background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;
+    padding:14px 16px;display:flex;justify-content:space-between;align-items:center;
+  }
+  .day-header h2{font-size:16px;font-weight:700}
+  .day-header .day-date{font-size:12px;opacity:.85}
+  .day-body{padding:0}
+  .timeline-item{
+    display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);
+    align-items:flex-start;
+  }
+  .timeline-item:last-child{border-bottom:none}
+  .timeline-time{
+    font-size:12px;font-weight:700;color:var(--blue);min-width:44px;padding-top:2px;
+  }
+  .timeline-content{flex:1}
+  .timeline-content h4{font-size:14px;font-weight:600;margin-bottom:2px}
+  .timeline-content p{font-size:13px;color:var(--muted)}
+  .timeline-content .tags{margin-top:4px}
+  .timeline-dot{
+    width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0;margin-top:6px;
+  }
+  .route-summary{
+    background:var(--card);margin:12px 16px;border-radius:var(--radius);padding:14px 16px;
+    box-shadow:0 1px 4px rgba(0,0,0,.04);font-size:13px;color:var(--muted);
+    display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+  }
+  .route-summary strong{color:var(--text);font-weight:600}
+  .route-badge{
+    font-size:11px;background:#e8f0fe;color:var(--blue);padding:2px 8px;border-radius:10px;
+    font-weight:600;
+  }
+  .food-section{margin:12px 16px}
+  .food-section h3{font-size:15px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .food-cards{display:flex;flex-direction:column;gap:8px}
+  .food-card{
+    background:var(--card);border-radius:var(--radius);padding:12px 14px;
+    box-shadow:0 1px 4px rgba(0,0,0,.04);display:flex;gap:10px;align-items:center;
+  }
+  .food-emoji{font-size:28px;flex-shrink:0;width:40px;text-align:center}
+  .food-info{flex:1;min-width:0}
+  .food-info h4{font-size:14px;font-weight:600}
+  .food-info p{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .food-price{font-size:13px;font-weight:600;color:var(--orange);flex-shrink:0}
+  .tips-card{
+    background:linear-gradient(135deg,#fef3c7,#fef9c3);margin:12px 16px;
+    border-radius:var(--radius);padding:14px 16px;font-size:13px;line-height:1.6;
+  }
+  .tips-card h4{font-size:14px;font-weight:700;margin-bottom:4px}
+  .tips-card ul{padding-left:18px}
+  .tips-card li{margin-bottom:2px;color:#92400e}
+  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:2000}
+  .overlay.show{display:block}
+  .sheet{
+    position:fixed;bottom:0;left:0;right:0;background:var(--card);
+    border-radius:16px 16px 0 0;z-index:2001;max-height:70vh;overflow-y:auto;
+    transform:translateY(100%);transition:transform .25s ease;
+    padding:16px 16px calc(16px + var(--safe-bottom));
+  }
+  .sheet.show{transform:translateY(0)}
+  .sheet-handle{width:36px;height:4px;border-radius:2px;background:#d1d5db;margin:0 auto 12px}
+  .sheet h3{font-size:17px;font-weight:700;margin-bottom:8px}
+  .sheet .row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)}
+  .sheet .row .label{color:var(--muted)}
+  .sheet .row .value{font-weight:600;text-align:right}
+  .sheet .desc{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.6}
+  .qr-section{
+    text-align:center;padding:24px 16px;background:var(--card);
+    margin:12px 16px;border-radius:var(--radius);
+    box-shadow:0 1px 4px rgba(0,0,0,.04);
+  }
+  .qr-section p{font-size:13px;color:var(--muted);margin-top:8px}
+  .qr-section img{border-radius:8px;max-width:180px}
+  .qr-section .url{font-size:11px;color:var(--blue);word-break:break-all;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🏝️ 厦门旅游攻略</h1>
+  <span class="date-badge">8/9 — 8/12</span>
+</div>
+<div class="tabs">
+  <div class="tab active" data-panel="map">🗺️ 地图</div>
+  <div class="tab" data-panel="itinerary">📋 行程</div>
+  <div class="tab" data-panel="food">🍜 美食</div>
+</div>
+<div class="panel active" id="panel-map">
+  <div id="map"></div>
+  <div class="map-filters" id="mapFilters">
+    <button class="map-filter active" data-cat="all">全部</button>
+    <button class="map-filter" data-cat="attraction">🏯 景点</button>
+    <button class="map-filter" data-cat="food">🍜 美食</button>
+    <button class="map-filter" data-cat="transport">🚉 交通</button>
+  </div>
+</div>
+<div class="panel" id="panel-itinerary">
+  <div class="route-summary">
+    <strong>🚉 厦门站</strong> 抵达 8/9 12:53 · 离开 8/12 13:13
+    <span class="route-badge">3晚4天</span>
+    <span class="route-badge">建议住宿：中山路/思明区</span>
+  </div>
+  <div id="itineraryDays"></div>
+</div>
+<div class="panel" id="panel-food">
+  <div class="tips-card">
+    <h4>🍽️ 厦门美食小贴士</h4>
+    <ul>
+      <li>沙茶面、海蛎煎、土笋冻 — 厦门三大必吃</li>
+      <li>姜母鸭、花生汤、烧肉粽 — 地道闽南味</li>
+      <li>曾厝垵和中山路是美食集中区，边走边吃最惬意</li>
+      <li>鼓浪屿岛上海鲜偏贵，建议回本岛吃</li>
+    </ul>
+  </div>
+  <div id="foodList"></div>
+</div>
+<div class="qr-section" style="margin-top:16px">
+  <p style="font-weight:600;color:var(--text);margin-bottom:8px">📱 在 iPhone 上打开</p>
+  <img src="qr-code.png" alt="QR Code" width="180" height="180" style="background:#fff;padding:4px;border-radius:8px">
+  <p>用 iPhone 相机扫描二维码</p>
+  <p class="url">或 Safari 访问：<br>90fd1bc77fe23a.lhr.life</p>
+  <p style="font-size:11px;color:var(--muted);margin-top:4px">确保 iPhone 与电脑连接同一 WiFi</p>
+</div>
+<div class="overlay" id="overlay"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div id="sheetContent"></div>
+</div>
+<script src="leaflet.js"></script>
+<script>
+var attractions = [
+  { id:"gulangyu", name:"鼓浪屿", lat:24.4478, lng:118.0685, cat:"attraction",
+    time:"全天（轮渡 7:10-17:30 冬季）", ticket:"船票 35元（往返）；日光岩 50元，菽庄花园 30元，皓月园 15元，联票 100元",
+    desc:"世界文化遗产，万国建筑博览。必打卡：日光岩俯瞰全岛、菽庄花园钢琴博物馆、龙头路小吃街。建议留一整天。",
+    projects:"日光岩登顶、菽庄花园、皓月园郑成功像、龙头路美食、海边漫步", icon:"🏝️" },
+  { id:"xmu", name:"厦门大学", lat:24.4383, lng:118.0935, cat:"attraction",
+    time:"周一至周五 12:00-14:00 限流；周末及节假日全天（需预约）", ticket:"免费（需提前在 U厦大 公众号预约）",
+    desc:"中国最美大学之一。芙蓉隧道涂鸦墙、芙蓉湖黑天鹅、上弦场、建南大礼堂都是出片好地方。",
+    projects:"芙蓉隧道、芙蓉湖、上弦场拍照、情人谷散步", icon:"🎓" },
+  { id:"nanputuo", name:"南普陀寺", lat:24.4436, lng:118.0918, cat:"attraction",
+    time:"外山门 3:00-20:00；内山门 3:00-18:00", ticket:"免费",
+    desc:"闽南佛教圣地，千年古刹。寺后五老峰可俯瞰厦大全景，素斋很有名。紧邻厦大西门，可一起游玩。",
+    projects:"礼佛祈福、登五老峰、品尝素斋、天王殿、大悲殿", icon:"🛕" },
+  { id:"zhongshan", name:"中山路步行街", lat:24.4530, lng:118.0866, cat:"attraction",
+    time:"全天开放（商铺约 10:00-22:00）", ticket:"免费",
+    desc:"厦门最老牌的商业街，骑楼建筑群充满南洋风情。晚上灯火辉煌，适合逛街拍照吃小吃。",
+    projects:"逛骑楼、老字号小吃、夜景街拍、特产采购", icon:"🏬" },
+  { id:"zengcuoan", name:"曾厝垵", lat:24.4307, lng:118.1075, cat:"attraction",
+    time:"全天（店铺约 10:00-23:00）", ticket:"免费",
+    desc:"中国最文艺渔村，遍布文创小店和美食摊位。巷子错综复杂像迷宫，每条小巷都有惊喜。晚上尤其热闹。",
+    projects:"文艺小店探店、盖章集邮、海鲜烧烤、手工纪念品", icon:"🎨" },
+  { id:"hulishan", name:"胡里山炮台", lat:24.4315, lng:118.1040, cat:"attraction",
+    time:"夏季 7:30-18:00；冬季 7:30-17:30", ticket:"25元",
+    desc:"保存完好的海防炮台，拥有世界现存最大的海岸古炮——克虏伯大炮。每天有清兵操演表演。",
+    projects:"观克虏伯大炮、清兵操演（10:00/16:00）、海景城墙", icon:"🏰" },
+  { id:"shapowei", name:"沙坡尾", lat:24.4410, lng:118.0820, cat:"attraction",
+    time:"全天（店铺约 10:00-22:00）", ticket:"免费",
+    desc:"厦门港的起源地，现在是最潮的文创艺术区。老渔港与咖啡馆、艺术空间混搭，超适合拍照打卡。",
+    projects:"艺术西区、避风坞拍照、咖啡馆、精酿酒吧、市集", icon:"🎭" },
+  { id:"baicheng", name:"白城沙滩", lat:24.4320, lng:118.1000, cat:"attraction",
+    time:"全天开放", ticket:"免费",
+    desc:"厦大旁的天然沙滩，沙质细腻，日落时分美不胜收。环岛路木栈道起点，可沿海散步或骑行。",
+    projects:"沙滩戏水、日落观赏、环岛路骑行、海边拍照", icon:"🏖️" },
+  { id:"huandao", name:"环岛路", lat:24.4310, lng:118.1100, cat:"attraction",
+    time:"全天开放", ticket:"免费",
+    desc:"厦门最美海滨公路，全长约31公里。推荐从白城沙滩到会展中心段，租一辆自行车沿海骑行。",
+    projects:"自行车骑行、海边栈道漫步、音乐广场、马拉松雕塑", icon:"🚴" },
+  { id:"botanical", name:"厦门植物园", lat:24.4470, lng:118.1030, cat:"attraction",
+    time:"6:30-18:00", ticket:"40元",
+    desc:"又名万石植物园，沙生植物区（多肉仙人掌）和雨林世界喷雾最出片。建议早上趁凉快去。",
+    projects:"沙生植物区、雨林世界喷雾、百花厅、蔷薇园", icon:"🌵" },
+  { id:"jimei", name:"集美学村", lat:24.5720, lng:118.0980, cat:"attraction",
+    time:"全天（各景点时间不一）", ticket:"免费（鳌园 10元）",
+    desc:"陈嘉庚先生创办的学村，嘉庚风格建筑群非常独特。龙舟池、鳌园、陈嘉庚纪念馆值得一看。",
+    projects:"龙舟池、鳌园、嘉庚建筑群、陈嘉庚纪念馆", icon:"🏫" },
+  { id:"wuyuan", name:"五缘湾湿地公园", lat:24.5300, lng:118.1800, cat:"attraction",
+    time:"全天开放", ticket:"免费",
+    desc:"厦门最大湿地公园，有迷宫木栈道和水鸟观赏区。适合晨跑和亲子游玩。",
+    projects:"迷宫木栈道、观鸟、帆船体验、湿地漫步", icon:"🦆" },
+  { id:"xiamen_station", name:"厦门站", lat:24.4710, lng:118.1110, cat:"transport",
+    time:"-", ticket:"-",
+    desc:"位于思明区，岛内主要火车站。地铁3号线经过，交通便利，距中山路约3公里。", projects:"", icon:"🚉" }
+];
+
+var foodSpots = [
+  { id:"f1", name:"乌糖沙茶面", area:"思明区·民族路", lat:24.4440, lng:118.0860, cat:"food",
+    desc:"厦门沙茶面天花板，汤头浓郁花生酱香，配料丰富自选。只营业到中午，建议早去。人均 25-40元", price:"¥25-40" },
+  { id:"f2", name:"莲欢海蛎煎", area:"中山路·局口街", lat:24.4510, lng:118.0860, cat:"food",
+    desc:"上过《舌尖》的老字号。海蛎饱满大颗，地瓜粉比例刚好，配上甜辣酱一绝。人均 15-25元", price:"¥15-25" },
+  { id:"f3", name:"西门土笋冻", area:"思明区·斗西路", lat:24.4535, lng:118.0830, cat:"food",
+    desc:"厦门人的心头好，沙虫冻晶莹Q弹。蘸酱油、醋、蒜蓉、辣酱一起吃，清凉爽口。人均 10-20元", price:"¥10-20" },
+  { id:"f4", name:"黄则和花生汤", area:"中山路", lat:24.4525, lng:118.0870, cat:"food",
+    desc:"百年老字号，花生汤绵密香甜，配上韭菜盒或炸枣。还有花生汤加蛋花版更香浓。人均 8-15元", price:"¥8-15" },
+  { id:"f5", name:"阿杰五香", area:"八市·开禾路", lat:24.4540, lng:118.0800, cat:"food",
+    desc:"八市必吃！豆皮裹猪肉马蹄炸至金黄，外酥内嫩。谢霆锋也来打卡过。人均 5-10元/条", price:"¥5-10" },
+  { id:"f6", name:"八市钟丽君满煎糕", area:"八市", lat:24.4545, lng:118.0795, cat:"food",
+    desc:"闽南传统甜点，软糯香甜。花生和芝麻两种口味，刚出炉最好吃。人均 5-10元", price:"¥5-10" },
+  { id:"f7", name:"月华沙茶面", area:"中山路·镇邦路", lat:24.4515, lng:118.0850, cat:"food",
+    desc:"40多年老店，沙茶面汤底偏甜，用料实在。店面不大但本地人超多。人均 20-30元", price:"¥20-30" },
+  { id:"f8", name:"灌顶姜母鸭", area:"思明区·灌顶路", lat:24.4460, lng:118.0880, cat:"food",
+    desc:"闽南冬季必吃，砂锅焖煮姜母鸭，姜香肉嫩，汤底拌饭绝了。人均 60-80元", price:"¥60-80" },
+  { id:"f9", name:"1980烧肉粽", area:"中山路", lat:24.4520, lng:118.0875, cat:"food",
+    desc:"40年烧肉粽专业户。肉粽配沙茶酱和香菜，再来一碗扁食汤，完美。人均 12-20元", price:"¥12-20" },
+  { id:"f10", name:"吴再添小吃店", area:"思明区·大同路", lat:24.4540, lng:118.0840, cat:"food",
+    desc:"厦门小吃一站式体验：芋包、油葱粿、肉粽、沙茶面全都有。老厦门人的食堂。人均 15-30元", price:"¥15-30" },
+  { id:"f11", name:"叶氏麻糍", area:"鼓浪屿·龙头路", lat:24.4470, lng:118.0670, cat:"food",
+    desc:"鼓浪屿上最出名的小吃摊，手工现做麻糍，软糯Q弹裹上花生芝麻粉。只收现金。人均 10元", price:"¥10" },
+  { id:"f12", name:"林记鱼丸", area:"鼓浪屿·龙头路", lat:24.4465, lng:118.0675, cat:"food",
+    desc:"鼓浪屿老字号，鲨鱼丸弹牙鲜甜，汤底清淡。春卷和海蛎煎也值得一试。人均 20-30元", price:"¥20-30" },
+  { id:"f13", name:"豪香里脊肉串", area:"中山路", lat:24.4520, lng:118.0860, cat:"food",
+    desc:"永远在排队的小摊！里脊肉串现炸现吃，外酥里嫩带点微辣。3元/串。人均 10-20元", price:"¥10-20" },
+  { id:"f14", name:"四里沙茶面", area:"思明区·后埭溪路", lat:24.4600, lng:118.1050, cat:"food",
+    desc:"本地人最爱的沙茶面之一，汤底浓郁偏辣，配料新鲜。猪肝、瘦肉、鱿鱼是经典搭配。人均 20-35元", price:"¥20-35" },
+  { id:"f15", name:"佘阿姨花生汤", area:"思明区·思明北路", lat:24.4480, lng:118.0850, cat:"food",
+    desc:"深夜花生汤！晚上才出摊，花生汤加蛋花配油条，暖胃治愈。人均 8-15元", price:"¥8-15" }
+];
+
+var itinerary = [
+  { day:"8月9日 周五", label:"抵达日 · 初探老厦门",
+    items:[
+      {time:"12:53", title:"抵达厦门站", desc:"厦门站位于思明区岛内，出站后打车/地铁前往酒店。建议住中山路或思北路口附近，去哪都方便。", icon:"🚉"},
+      {time:"14:00", title:"入住 + 午餐", desc:"酒店放下行李，附近找一家沙茶面或小吃店解决午餐。推荐：四里沙茶面或月华沙茶面。", icon:"🧳"},
+      {time:"15:30", title:"中山路步行街", desc:"从中山路西段开始逛，欣赏百年骑楼建筑，逛老字号商铺。黄则和花生汤、1980烧肉粽可以边逛边吃。", icon:"🏬"},
+      {time:"17:00", title:"八市（第八菜市场）", desc:"厦门最有烟火气的地方。阿杰五香、钟丽君满煎糕必吃。感受老厦门的市井生活气息。", icon:"🛒"},
+      {time:"18:30", title:"沙坡尾", desc:"傍晚的沙坡尾最美。在避风坞看日落，逛艺术西区，找一家二楼咖啡馆看渔港夜色。", icon:"🌅"},
+      {time:"21:00", title:"返回酒店休息", desc:"早点休息，明天鼓浪屿需要体力！", icon:"😴"}
+    ]
+  },
+  { day:"8月10日 周六", label:"鼓浪屿 · 海上花园",
+    items:[
+      {time:"7:30", title:"出发前往东渡邮轮码头", desc:"⚠️ 提前3天在「厦门轮渡」公众号买船票！游客从东渡邮轮码头出发，船票35元往返。", icon:"🎫"},
+      {time:"9:00", title:"日光岩", desc:"鼓浪屿最高点，俯瞰全岛和厦门天际线。早上人少光线好。门票50元。", icon:"⛰️"},
+      {time:"10:30", title:"菽庄花园", desc:"面海的私家园林，钢琴博物馆珍藏百余架古钢琴。园林精巧一步一景。门票30元。", icon:"🏯"},
+      {time:"12:00", title:"龙头路午餐", desc:"龙头路是鼓浪屿美食街。叶氏麻糍（只收现金）、林记鱼丸、张三疯奶茶都在这条街上。", icon:"🍽️"},
+      {time:"13:30", title:"皓月园", desc:"郑成功巨型石雕像所在地，海边栈道风景开阔。门票15元。可买100元联票含多个景点。", icon:"🗿"},
+      {time:"15:00", title:"万国建筑漫步", desc:"鼓浪屿精华在巷弄间。推荐路线：福建路→安海路→鸡山路，看各国领事馆旧址和华侨别墅。", icon:"🚶"},
+      {time:"17:00", title:"返回厦门本岛", desc:"从三丘田码头乘船返回，回程可选轮渡码头（中山路对面），更方便。", icon:"⛴️"},
+      {time:"18:30", title:"中山路晚餐", desc:"莲欢海蛎煎 + 豪香里脊肉串 + 西门土笋冻，一次打卡三大必吃。", icon:"🍜"}
+    ]
+  },
+  { day:"8月11日 周日", label:"厦大 + 环岛路 · 最美海岸线",
+    items:[
+      {time:"7:30", title:"南普陀寺", desc:"清晨的南普陀安静祥和。进香礼佛后登五老峰（约40分钟），俯瞰厦大和海岸线。", icon:"🛕"},
+      {time:"9:30", title:"厦门大学", desc:"从南普陀旁西门进入（周末无需预约，带身份证）。打卡：芙蓉湖→上弦场→建南大礼堂→芙蓉隧道。", icon:"🎓"},
+      {time:"12:00", title:"厦大周边午餐", desc:"厦大西村附近餐厅众多。推荐：吴再添小吃店或南华路一带的文艺小馆。", icon:"🍱"},
+      {time:"13:30", title:"白城沙滩", desc:"从厦大白城校门出来就是沙滩。踩踩水、拍拍照，沿木栈道往胡里山方向走。", icon:"🏖️"},
+      {time:"14:30", title:"胡里山炮台", desc:"参观世界最大海岸古炮，看16:00的清兵操演（如赶上）。门票25元。城墙上视野极好。", icon:"🏰"},
+      {time:"16:30", title:"环岛路骑行", desc:"在胡里山附近租共享单车或双人自行车，沿海骑行到曾厝垵方向。约30分钟，一路海风惬意。", icon:"🚴"},
+      {time:"17:30", title:"曾厝垵", desc:"傍晚的曾厝垵最热闹。在迷宫般的巷子里穿梭，烤生蚝、沙茶面、海蛎煎、花生卷冰淇淋…", icon:"🎨"},
+      {time:"20:00", title:"环岛路夜景/回酒店", desc:"曾厝垵出来后可以在环岛路海边坐坐吹海风，或者直接回酒店。", icon:"🌙"}
+    ]
+  },
+  { day:"8月12日 周一", label:"离开日 · 最后的厦门时光",
+    items:[
+      {time:"7:00", title:"厦门植物园", desc:"早起趁凉快去植物园。沙生植物区和雨林世界喷雾（9:00-11:00）是两大出片圣地。门票40元。", icon:"🌵"},
+      {time:"10:30", title:"最后的厦门早餐/午餐", desc:"在植物园附近或中山路最后吃一顿厦门味。佘阿姨花生汤配油条，或吴再添打包。", icon:"🥢"},
+      {time:"11:30", title:"前往厦门站", desc:"从市区到厦门站约15-20分钟车程。预留充足时间取票、安检、候车。", icon:"🚖"},
+      {time:"13:13", title:"离开厦门 👋", desc:"厦门之旅结束！记得带好特产：鼓浪屿馅饼、黄胜记肉脯、南普陀素饼…下次再来！", icon:"✈️"}
+    ]
+  }
+];
+
+// ── MAP ──
+var map = L.map('map',{attributionControl:false}).setView([24.46,118.10],12);
+// Tile layers for China accessibility
+var osmTiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18});
+var esriTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:18});
+var cartoTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:18,subdomains:'abcd'});
+
+// Start with ESRI (more reliable in China)
+esriTiles.addTo(map);
+
+// Add a simple tile switcher control
+var tileControl = L.control.layers({
+  "ESRI 世界地图": esriTiles,
+  "OpenStreetMap": osmTiles,
+  "CartoDB 浅色": cartoTiles
+}, null, {position:'topright',collapsed:true}).addTo(map);
+
+var markerGroups = {};
+var allMarkers = [];
+
+attractions.forEach(function(a){
+  var color = a.cat==='transport'?'#6b7280':'#1a73e8';
+  var marker = L.marker([a.lat,a.lng],{
+    icon: L.divIcon({
+      className:'custom-div-icon',
+      html:'<div style="background:#fff;border:2px solid '+color+';border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 6px rgba(0,0,0,.15)">'+(a.icon||'📍')+'</div>',
+      iconSize:[36,36],iconAnchor:[18,18],popupAnchor:[0,-20]
+    })
+  }).addTo(map);
+
+  var tags = [];
+  if(a.ticket.includes('免费')) tags.push('<span class="tag tag-free">免费</span>');
+  else if(a.ticket!=='-') tags.push('<span class="tag tag-paid">收费</span>');
+
+  marker.bindPopup(
+    '<h3>'+(a.icon||'')+' '+a.name+'</h3>'+
+    tags.join('')+
+    (a.time!=='-'?'<span class="tag tag-time">'+a.time+'</span>':'')+
+    '<div style="margin-top:6px"><strong>门票：</strong>'+a.ticket+'</div>'+
+    (a.projects?'<div style="margin-top:4px"><strong>推荐：</strong>'+a.projects+'</div>':'')+
+    '<div style="margin-top:4px;cursor:pointer;color:var(--blue);font-weight:600" onclick="showDetail(\''+a.id+'\')">查看详情 →</div>'
+  );
+
+  marker._spotData = a;
+  if(!markerGroups[a.cat]) markerGroups[a.cat] = [];
+  markerGroups[a.cat].push(marker);
+  allMarkers.push(marker);
+});
+
+foodSpots.forEach(function(f){
+  var marker = L.marker([f.lat,f.lng],{
+    icon: L.divIcon({
+      className:'custom-div-icon',
+      html:'<div style="background:#fff;border:2px solid #ea580c;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,.12)">🍜</div>',
+      iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-16]
+    })
+  }).addTo(map);
+
+  marker.bindPopup(
+    '<h3>🍜 '+f.name+'</h3>'+
+    '<span class="tag tag-food">美食</span>'+
+    '<div style="margin-top:4px"><strong>区域：</strong>'+f.area+'</div>'+
+    '<div style="margin-top:4px">'+f.desc+'</div>'+
+    '<div style="margin-top:2px;color:var(--orange);font-weight:700">'+f.price+'</div>'
+  );
+
+  marker._foodData = f;
+  if(!markerGroups['food']) markerGroups['food'] = [];
+  markerGroups['food'].push(marker);
+  allMarkers.push(marker);
+});
+
+var group = L.featureGroup(allMarkers);
+map.fitBounds(group.getBounds().pad(0.1));
+
+// Map filters
+var activeCat = 'all';
+document.getElementById('mapFilters').addEventListener('click',function(e){
+  var btn = e.target.closest('.map-filter');
+  if(!btn) return;
+  document.querySelectorAll('.map-filter').forEach(function(b){b.classList.remove('active')});
+  btn.classList.add('active');
+  activeCat = btn.dataset.cat;
+  allMarkers.forEach(function(m){
+    var cat = m._spotData ? m._spotData.cat : (m._foodData ? 'food' : '');
+    if(activeCat==='all' || cat===activeCat) m.addTo(map);
+    else map.removeLayer(m);
+  });
+});
+
+// ── ITINERARY ──
+function renderItinerary(){
+  var container = document.getElementById('itineraryDays');
+  container.innerHTML = itinerary.map(function(d){
+    return '<div class="day-card">'+
+      '<div class="day-header">'+
+        '<div><h2>'+d.day+'</h2><span style="font-size:12px;opacity:.85">'+d.label+'</span></div>'+
+        '<span class="day-date">'+d.items.length+'个行程</span>'+
+      '</div>'+
+      '<div class="day-body">'+
+        d.items.map(function(i){
+          return '<div class="timeline-item">'+
+            '<span class="timeline-time">'+i.time+'</span>'+
+            '<div class="timeline-dot"></div>'+
+            '<div class="timeline-content"><h4>'+i.icon+' '+i.title+'</h4><p>'+i.desc+'</p></div>'+
+          '</div>';
+        }).join('')+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+renderItinerary();
+
+// ── FOOD LIST ──
+function renderFoodList(){
+  var areas = ['中山路', '八市', '思明区', '鼓浪屿'];
+  var container = document.getElementById('foodList');
+  container.innerHTML = areas.map(function(area){
+    var spots = foodSpots.filter(function(f){return f.area.includes(area)});
+    if(!spots.length) return '';
+    return '<div class="food-section">'+
+      '<h3>📍 '+area+'</h3>'+
+      '<div class="food-cards">'+
+        spots.map(function(f){
+          return '<div class="food-card" onclick="flyToFood('+f.lat+','+f.lng+')">'+
+            '<div class="food-emoji">🍜</div>'+
+            '<div class="food-info"><h4>'+f.name+'</h4><p>'+f.desc.split('。')[0]+'</p></div>'+
+            '<div class="food-price">'+f.price+'</div>'+
+          '</div>';
+        }).join('')+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+renderFoodList();
+
+// ── TAB SWITCHING ──
+document.querySelectorAll('.tab').forEach(function(tab){
+  tab.addEventListener('click',function(){
+    document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active')});
+    document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active')});
+    tab.classList.add('active');
+    document.getElementById('panel-'+tab.dataset.panel).classList.add('active');
+    if(tab.dataset.panel==='map') setTimeout(function(){map.invalidateSize()},100);
+  });
+});
+
+// ── DETAIL SHEET ──
+function showDetail(id){
+  var a = attractions.find(function(x){return x.id===id});
+  if(!a) return;
+  var content = document.getElementById('sheetContent');
+  var tags = [];
+  if(a.ticket.includes('免费')) tags.push('<span class="tag tag-free">免费</span>');
+  else if(a.ticket!=='-') tags.push('<span class="tag tag-paid">收费</span>');
+  if(a.time!=='-') tags.push('<span class="tag tag-time">'+a.time+'</span>');
+
+  content.innerHTML =
+    '<h3>'+a.icon+' '+a.name+'</h3>'+
+    '<div style="margin-bottom:8px">'+tags.join('')+'</div>'+
+    '<div class="row"><span class="label">开放时间</span><span class="value">'+a.time+'</span></div>'+
+    '<div class="row"><span class="label">门票信息</span><span class="value">'+a.ticket+'</span></div>'+
+    (a.projects?'<div class="row"><span class="label">推荐项目</span><span class="value">'+a.projects+'</span></div>':'')+
+    '<div class="desc">'+a.desc+'</div>'+
+    '<div style="margin-top:12px"><button onclick="flyToSpot(\''+a.id+'\')" style="background:var(--blue);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;width:100%">📍 在地图上查看</button></div>';
+
+  document.getElementById('sheet').classList.add('show');
+  document.getElementById('overlay').classList.add('show');
+}
+
+document.getElementById('overlay').addEventListener('click',function(){
+  document.getElementById('sheet').classList.remove('show');
+  document.getElementById('overlay').classList.remove('show');
+});
+document.getElementById('sheet').addEventListener('click',function(e){e.stopPropagation()});
+
+function flyToSpot(id){
+  var a = attractions.find(function(x){return x.id===id});
+  if(!a) return;
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active')});
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active')});
+  document.querySelector('[data-panel="map"]').classList.add('active');
+  document.getElementById('panel-map').classList.add('active');
+  setTimeout(function(){map.invalidateSize();map.setView([a.lat,a.lng],16)},150);
+  document.getElementById('sheet').classList.remove('show');
+  document.getElementById('overlay').classList.remove('show');
+}
+
+function flyToFood(lat,lng){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active')});
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active')});
+  document.querySelector('[data-panel="map"]').classList.add('active');
+  document.getElementById('panel-map').classList.add('active');
+  setTimeout(function(){map.invalidateSize();map.setView([lat,lng],16)},150);
+}
+
+window.addEventListener('resize',function(){map.invalidateSize()});
+</script>
+
+</body>
+</html>
