@@ -338,29 +338,63 @@ var itinerary = [
   }
 ];
 
+// ── WGS-84 to GCJ-02 conversion ──
+function wgs84ToGcj02(lng, lat) {
+  var PI = Math.PI;
+  var a = 6378245.0;
+  var ee = 0.00669342162296594323;
+  function transformLat(x, y) {
+    var ret = -100.0 + 2.0*x + 3.0*y + 0.2*y*y + 0.1*x*y + 0.2*Math.sqrt(Math.abs(x));
+    ret += (20.0*Math.sin(6.0*x*PI) + 20.0*Math.sin(2.0*x*PI))*2.0/3.0;
+    ret += (20.0*Math.sin(y*PI) + 40.0*Math.sin(y/3.0*PI))*2.0/3.0;
+    ret += (160.0*Math.sin(y/12.0*PI) + 320.0*Math.sin(y*PI/30.0))*2.0/3.0;
+    return ret;
+  }
+  function transformLng(x, y) {
+    var ret = 300.0 + x + 2.0*y + 0.1*x*x + 0.1*x*y + 0.1*Math.sqrt(Math.abs(x));
+    ret += (20.0*Math.sin(6.0*x*PI) + 20.0*Math.sin(2.0*x*PI))*2.0/3.0;
+    ret += (20.0*Math.sin(x*PI) + 40.0*Math.sin(x/3.0*PI))*2.0/3.0;
+    ret += (150.0*Math.sin(x/12.0*PI) + 300.0*Math.sin(x/30.0*PI))*2.0/3.0;
+    return ret;
+  }
+  var dLat = transformLat(lng - 105.0, lat - 35.0);
+  var dLng = transformLng(lng - 105.0, lat - 35.0);
+  var radLat = lat / 180.0 * PI;
+  var magic = Math.sin(radLat);
+  magic = 1 - ee * magic * magic;
+  var sqrtMagic = Math.sqrt(magic);
+  var dLat2 = (dLat * 180.0) / ((a * (1 - ee)) / (magic * sqrtMagic) * PI);
+  var dLng2 = (dLng * 180.0) / (a / sqrtMagic * Math.cos(radLat) * PI);
+  return [lng + dLng2, lat + dLat2];
+}
+
 // ── MAP ──
 var map = L.map('map',{attributionControl:false}).setView([24.46,118.10],12);
-// Tile layers for China accessibility
-var osmTiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18});
+
+// 高德地图 (Gaode) - default for China
+var gaodeTiles = L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',{
+  subdomains:'1234',maxZoom:18
+});
+
+// Fallback tiles
 var esriTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:18});
-var cartoTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:18,subdomains:'abcd'});
+var osmTiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18});
 
-// Start with ESRI (more reliable in China)
-esriTiles.addTo(map);
+gaodeTiles.addTo(map);
 
-// Add a simple tile switcher control
 var tileControl = L.control.layers({
+  "高德地图": gaodeTiles,
   "ESRI 世界地图": esriTiles,
-  "OpenStreetMap": osmTiles,
-  "CartoDB 浅色": cartoTiles
+  "OpenStreetMap": osmTiles
 }, null, {position:'topright',collapsed:true}).addTo(map);
 
 var markerGroups = {};
 var allMarkers = [];
 
 attractions.forEach(function(a){
+  var gcj = wgs84ToGcj02(a.lng, a.lat);
   var color = a.cat==='transport'?'#6b7280':'#1a73e8';
-  var marker = L.marker([a.lat,a.lng],{
+  var marker = L.marker([gcj[1],gcj[0]],{
     icon: L.divIcon({
       className:'custom-div-icon',
       html:'<div style="background:#fff;border:2px solid '+color+';border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 6px rgba(0,0,0,.15)">'+(a.icon||'📍')+'</div>',
@@ -388,7 +422,8 @@ attractions.forEach(function(a){
 });
 
 foodSpots.forEach(function(f){
-  var marker = L.marker([f.lat,f.lng],{
+  var gcj = wgs84ToGcj02(f.lng, f.lat);
+  var marker = L.marker([gcj[1],gcj[0]],{
     icon: L.divIcon({
       className:'custom-div-icon',
       html:'<div style="background:#fff;border:2px solid #ea580c;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 4px rgba(0,0,0,.12)">🍜</div>',
